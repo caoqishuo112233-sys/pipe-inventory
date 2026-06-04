@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="管材库存">
+<title>管材库存管理</title>
+<style>
+:root{--primary:#2563eb;--success:#16a34a;--danger:#dc2626;--warning:#f59e0b;--bg:#f1f5f9;--card:#fff;--text:#1e293b;--text-secondary:#64748b;--border:#e2e8f0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;background:var(--bg);color:var(--text);font-size:14px;padding-bottom:70px;min-height:100vh}
+.header{background:var(--primary);color:#fff;padding:16px;position:sticky;top:0;z-index:100;display:flex;justify-content:space-between}
+.header h1{font-size:18px;font-weight:600}
+.tab-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100}
+.tab-item{flex:1;text-align:center;padding:8px 0 6px;font-size:11px;color:var(--text-secondary);cursor:pointer;border:none;background:none;font-family:inherit}
+.tab-item .tab-icon{font-size:20px;display:block}
+.tab-item.active{color:var(--primary);font-weight:600}
+.page{display:none;padding:12px}
+.page.active{display:block}
+.card{background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.card-title{font-size:15px;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:13px;font-weight:500;margin-bottom:4px;color:var(--text-secondary)}
+.form-input,.form-select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;outline:none;font-family:inherit}
+.form-input:focus,.form-select:focus{border-color:var(--primary)}
+.form-row{display:flex;gap:10px}
+.form-row .form-group{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 20px;border-radius:8px;border:none;font-size:14px;font-weight:500;cursor:pointer;width:100%;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:12px;width:auto}
+.btn-group{display:flex;gap:8px;margin-top:4px}
+.btn-group .btn{flex:1}
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar .form-input{flex:1}
+.filter-chips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.chip{padding:4px 14px;border-radius:16px;font-size:12px;border:1px solid var(--border);background:var(--card);cursor:pointer}
+.chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.group-header{background:var(--card);border-radius:10px;padding:10px 14px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.group-header .spec{font-size:16px;font-weight:700;color:var(--primary)}
+.group-header .total{font-size:16px;font-weight:700}
+.group-items{margin-bottom:12px;padding-left:4px}
+.group-items .card{margin-bottom:4px}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.list-item:last-child{border-bottom:none}
+.list-item-main{flex:1}
+.list-item-title{font-size:14px;font-weight:500}
+.list-item-sub{font-size:12px;color:var(--text-secondary);margin-top:2px}
+.list-item-right{text-align:right}
+.stock-number{font-size:18px;font-weight:700}
+.stock-number.low{color:var(--danger)}
+.stock-number.ok{color:var(--success)}
+.stock-number.medium{color:var(--warning)}
+.stock-label{font-size:11px;color:var(--text-secondary)}
+.stock-row{display:flex;gap:6px;margin-top:6px;align-items:center}
+.stock-main{flex:1.5;background:var(--primary);color:#fff;border-radius:8px;padding:6px 10px;text-align:center}
+.stock-main .stock-num{font-size:22px;font-weight:700;display:block}
+.stock-main .stock-label{color:rgba(255,255,255,0.8);font-size:11px}
+.stock-sub{flex:1;text-align:center;padding:6px 4px}
+.stock-sub .stock-num{font-size:15px;font-weight:600;display:block}
+.stock-sub .stock-label{font-size:10px;color:var(--text-secondary)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;justify-content:center;align-items:flex-end}
+.modal-overlay.active{display:flex}
+.modal-content{background:var(--card);border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-header h2{font-size:17px}
+.modal-close{font-size:24px;cursor:pointer;padding:4px;color:var(--text-secondary)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat-card{background:var(--card);border-radius:10px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.stat-number{font-size:24px;font-weight:700}
+.stat-label{font-size:12px;color:var(--text-secondary)}
+.stat-card.primary .stat-number{color:var(--primary)}
+.stat-card.success .stat-number{color:var(--success)}
+.stat-card.danger .stat-number{color:var(--danger)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-mpp{background:#dbeafe;color:#1d4ed8}
+.badge-pe{background:#dcfce7;color:#15803d}
+.record-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.record-icon{font-size:18px;width:28px}
+.record-info{flex:1}
+.record-title{font-size:13px}
+.record-meta{font-size:11px;color:var(--text-secondary)}
+.record-qty{font-weight:600}
+.record-qty.in{color:var(--success)}
+.record-qty.out{color:var(--danger)}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.fab{position:fixed;bottom:76px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:26px;box-shadow:0 4px 12px rgba(37,99,235,0.4);cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center}
+@media(min-width:768px){body{max-width:600px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border)}.tab-bar{max-width:600px;left:50%;transform:translateX(-50%)}.fab{right:calc(50% - 284px)}}
+.confirm-dialog{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:250;justify-content:center;align-items:center}
+.confirm-dialog.active{display:flex}
+.confirm-box{background:var(--card);border-radius:14px;padding:20px;max-width:300px;width:90%;text-align:center}
+.confirm-box p{margin-bottom:16px}
+.check-mode .stock-main{cursor:pointer;transition:transform .15s,box-shadow .15s}
+.check-mode .stock-main:hover{transform:scale(1.05);box-shadow:0 2px 8px rgba(37,99,235,0.3)}
+.check-mode .stock-main:active{transform:scale(0.97)}
+.mode-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;margin-left:auto}
+.mode-badge.active{background:#fef3c7;color:#d97706}
+.diff-positive{color:var(--success)}
+.diff-negative{color:var(--danger)}
+</style>
+</head>
+<body><div class="header"><h1>📦 管材库存</h1><div style="display:flex;align-items:center;gap:8px"><span id="syncStatus" style="font-size:14px;cursor:help" title="连接状态">⏳</span><div class="time" id="headerTime"></div></div></div>
+
+<div id="pageInventory" class="page active">
+  <div class="search-bar">
+    <input class="form-input" id="searchInput" placeholder="🔍 搜索型号/壁厚/备注..." oninput="renderInventory()">
+    <button class="btn btn-sm btn-outline" onclick="clearSearch()" style="width:auto;flex-shrink:0">✕</button>
+  </div>
+  <div class="filter-chips" id="filterChips">
+    <span class="chip active" data-filter="all" onclick="setFilter('all',this)">全部</span>
+    <span class="chip" data-filter="MPP" onclick="setFilter('MPP',this)">MPP</span>
+    <span class="chip" data-filter="PE" onclick="setFilter('PE',this)">PE</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+    <button class="btn btn-sm btn-outline" id="groupToggleBtn" onclick="toggleGroup()">📂 按规格分组</button>
+    <span style="font-size:12px;color:var(--text-secondary)">将同型号MPP/PE放在一起</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+    <button class="btn btn-sm btn-outline" id="checkToggleBtn" onclick="toggleCheckMode()">📋 盘点模式</button>
+    <span style="font-size:12px;color:var(--text-secondary)" id="checkModeHint">点击库存数字快速盘点</span>
+  </div>
+  <div class="card" style="padding:8px 14px;display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)">
+    <span>共 <span id="totalCount">0</span> 种管材</span>
+    <span>总库存: <span id="totalStock">0</span> 米</span>
+  </div>
+  <div id="inventoryList"></div>
+</div>
+
+<div id="pageStockIn" class="page">
+  <div class="card">
+    <div class="card-title">📥 入库</div>
+    <div class="form-group"><label>选择管材</label><select class="form-select" id="inProduct"></select></div>
+    <div class="form-group"><label>入库数量 (米)</label><input class="form-input" id="inQty" type="number" min="0.1" step="any" placeholder="输入米数"></div>
+    <div class="form-group"><label>备注（可选）</label><input class="form-input" id="inNote" placeholder="如：供应商、批次等"></div>
+    <button class="btn btn-success" onclick="doStockIn()">确认入库</button>
+  </div>
+  <div class="card">
+    <div class="card-title">最近入库记录</div>
+    <div id="recentInRecords"><div class="empty-state"><p>暂无记录</p></div></div>
+  </div>
+</div>
+
+<div id="pageStockOut" class="page">
+  <div class="card">
+    <div class="card-title">📤 出库</div>
+    <div class="form-group"><label>选择管材</label><select class="form-select" id="outProduct"></select></div>
+    <div class="form-group"><label>出库数量 (米)</label><input class="form-input" id="outQty" type="number" min="0.1" step="any" placeholder="输入米数"></div>
+    <div class="form-group"><label>备注（可选）</label><input class="form-input" id="outNote" placeholder="如：领用人、工地等"></div>
+    <button class="btn btn-danger" onclick="doStockOut()">确认出库</button>
+  </div>
+  <div class="card">
+    <div class="card-title">最近出库记录</div>
+    <div id="recentOutRecords"><div class="empty-state"><p>暂无记录</p></div></div>
+  </div>
+</div>
+
+<div id="pageStats" class="page">
+  <div class="stat-grid">
+    <div class="stat-card primary"><div class="stat-number" id="statTypes">0</div><div class="stat-label">管材种类</div></div>
+    <div class="stat-card success"><div class="stat-number" id="statTotalStock">0</div><div class="stat-label">总库存(米)</div></div>
+    <div class="stat-card success"><div class="stat-number" id="statTotalIn">0</div><div class="stat-label">总入库(米)</div></div>
+    <div class="stat-card danger"><div class="stat-number" id="statTotalOut">0</div><div class="stat-label">总出库(米)</div></div>
+  </div>
+  <div class="card"><div class="card-title">📊 各型号库存</div><div id="statsBreakdown"></div></div>
+  <div class="card"><div class="card-title">📊 分类型统计</div><div id="typeBreakdown"></div></div>
+  <div class="card"><div class="card-title">⚠️ 低库存提醒</div><div id="lowStockAlerts"><div class="empty-state"><p>所有库存正常 ✅</p></div></div></div>
+</div>
+
+<button class="fab" id="fabBtn" onclick="openAddProduct()">＋</button>
+
+<div class="tab-bar">
+  <button class="tab-item active" data-page="pageInventory" onclick="switchPage('pageInventory',this)"><span class="tab-icon">📋</span>库存</button>
+  <button class="tab-item" data-page="pageStockIn" onclick="switchPage('pageStockIn',this)"><span class="tab-icon">📥</span>入库</button>
+  <button class="tab-item" data-page="pageStockOut" onclick="switchPage('pageStockOut',this)"><span class="tab-icon">📤</span>出库</button>
+  <button class="tab-item" data-page="pageStats" onclick="switchPage('pageStats',this)"><span class="tab-icon">📊</span>统计</button>
+</div>
+
+<div class="modal-overlay" id="addProductModal">
+  <div class="modal-content">
+    <div class="modal-header"><h2>➕ 新增管材</h2><button class="modal-close" onclick="closeModal('addProductModal')">✕</button></div>
+    <div class="form-group"><label>类型</label>
+      <select class="form-select" id="newType" onchange="document.getElementById('weightField').style.display=this.value==='PE'?'block':'none'">
+        <option value="MPP">MPP</option>
+        <option value="PE">PE</option>
+      </select>
+    </div>
+    <div class="form-group"><label>型号</label><input class="form-input" id="newModel" placeholder="如 DN200, DN160"></div>
+    <div class="form-row">
+      <div class="form-group"><label>壁厚 (mm)</label><input class="form-input" id="newThickness" type="number" step="0.1" placeholder="如 11.9"></div>
+      <div class="form-group"><label>单价 (元/米)</label><input class="form-input" id="newPrice" type="number" step="0.01" placeholder="可选"></div>
+    </div>
+    <div class="form-group" id="weightField" style="display:none"><label>公斤/米 (kg/m)</label><input class="form-input" id="newWeight" type="number" step="0.01" min="0" placeholder="PE 每米重量，如 3.85"></div>
+    <div class="form-group"><label>备注</label><input class="form-input" id="newNote" placeholder="可选"></div>
+    <button class="btn btn-primary" onclick="addProduct()">确认添加</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editProductModal">
+  <div class="modal-content">
+    <div class="modal-header"><h2>✏️ 编辑管材</h2><button class="modal-close" onclick="closeModal('editProductModal')">✕</button></div>
+    <div class="form-group"><label>类型</label>
+      <select class="form-select" id="editType" onchange="document.getElementById('editWeightField').style.display=this.value==='PE'?'block':'none'">
+        <option value="MPP">MPP</option>
+        <option value="PE">PE</option>
+      </select>
+    </div>
+    <div class="form-group"><label>型号</label><input class="form-input" id="editModel" placeholder="如 DN200"></div>
+    <div class="form-row">
+      <div class="form-group"><label>壁厚 (mm)</label><input class="form-input" id="editThickness" type="number" step="0.1"></div>
+      <div class="form-group"><label>单价 (元/米)</label><input class="form-input" id="editPrice" type="number" step="0.01"></div>
+    </div>
+    <div class="form-group" id="editWeightField" style="display:none"><label>公斤/米 (kg/m)</label><input class="form-input" id="editWeight" type="number" step="0.01" min="0" placeholder="PE 每米重量"></div>
+    <div class="form-group"><label>备注</label><input class="form-input" id="editNote"></div>
+    <div class="btn-group"><button class="btn btn-danger" style="flex:0.4" onclick="deleteProduct()">🗑️ 删除</button><button class="btn btn-primary" onclick="saveEditProduct()">保存修改</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="checkModal">
+  <div class="modal-content">
+    <div class="modal-header"><h2>📋 库存盘点</h2><button class="modal-close" onclick="closeModal(\x27checkModal\x27)">✕</button></div>
+    <div id="checkContent"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-content">
+    <div class="modal-header"><h2 id="detailTitle"></h2><button class="modal-close" onclick="closeModal('detailModal')">✕</button></div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<div class="confirm-dialog" id="confirmDialog">
+  <div class="confirm-box">
+    <p id="confirmText"></p>
+    <div class="btn-group"><button class="btn btn-outline" onclick="cancelConfirm()">取消</button><button class="btn btn-danger" onclick="execConfirm()">确认</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+const SK="pipe_inventory_data";
+function getData(){try{const r=localStorage.getItem(SK);if(!r)return{products:[],records:[]};return JSON.parse(r)}catch{return{products:[],records:[]}}}
+function saveData(d){localStorage.setItem(SK,JSON.stringify(d));if(typeof syncPush==="function")syncPush(d)}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+// ========== 多设备同步 (Gitee 码云) ==========
+
+// 填入你的 Gitee 私人令牌
+const GITEE_TOKEN = "21b50de0c395aafa6378bffdda86d97e";
+const GITEE_GIST_ID = "";  // 首次运行自动创建，不需填写
+
+let syncVersion = 0;
+let syncConnected = false;
+let syncTimer = 0;
+
+async function initSync() {
+  if (!GITEE_TOKEN) {
+    setSyncStatus(false);
+    console.log("Gitee Token 未配置，仅本地运行");
+    return;
+  }
+  var gistId = GITEE_GIST_ID || localStorage.getItem("gitee_gist_id");
+  if (gistId) {
+    try {
+      const r = await fetch("https://gitee.com/api/v5/gists/" + gistId + "?access_token=" + GITEE_TOKEN);
+      if (r.ok) {
+        const gist = await r.json();
+        var content = JSON.parse(gist.files["inventory.json"].content);
+        syncVersion = content.version || 0;
+        setSyncStatus(true);
+        console.log("Gitee 已连接，版本:", syncVersion);
+      }
+    } catch(e) { console.log("Gitee 读取失败:", e.message); }
+  }
+  syncTimer = setInterval(syncPull, 5000);
+}
+
+function setSyncStatus(ok) {
+  syncConnected = ok;
+  const el = document.getElementById("syncStatus");
+  if (!el) return;
+  el.textContent = ok ? "\uD83D\uDFE2" : (GITEE_TOKEN ? "\uD83D\uDD34" : "\u23F9\uFE0F");
+  el.title = ok ? "云端已连接" : (GITEE_TOKEN ? "云端未连接" : "未配置云同步");
+}
+
+async function syncPush(d) {
+  if (!GITEE_TOKEN) return;
+  try {
+    var newVer = syncVersion + 1;
+    var gistId = GITEE_GIST_ID || localStorage.getItem("gitee_gist_id");
+    var url, method;
+    if (gistId) {
+      url = "https://gitee.com/api/v5/gists/" + gistId + "?access_token=" + GITEE_TOKEN;
+      method = "PATCH";
+    } else {
+      url = "https://gitee.com/api/v5/gists?access_token=" + GITEE_TOKEN;
+      method = "POST";
+    }
+    var payload = {
+      files: {
+        "inventory.json": {
+          content: JSON.stringify({ products: d.products, records: d.records, version: newVer }, null, 2)
+        }
+      }
+    };
+    if (!gistId) { payload.description = "Pipe Inventory Data"; payload.public = false; }
+    const r = await fetch(url, {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      const res = await r.json();
+      if (res.id) { localStorage.setItem("gitee_gist_id", res.id); }
+      syncVersion = newVer;
+      setSyncStatus(true);
+    } else {
+      console.log("Push failed:", r.status, await r.text());
+      setSyncStatus(false);
+    }
+  } catch(e) {
+    console.log("Push error:", e.message);
+    setSyncStatus(false);
+  }
+}
+
+async function syncPull() {
+  if (!GITEE_TOKEN) return;
+  var gistId = GITEE_GIST_ID || localStorage.getItem("gitee_gist_id");
+  if (!gistId) return;
+  try {
+    const r = await fetch("https://gitee.com/api/v5/gists/" + gistId + "?access_token=" + GITEE_TOKEN);
+    if (!r.ok) return;
+    const gist = await r.json();
+    var content = JSON.parse(gist.files["inventory.json"].content);
+    if (content.version > syncVersion) {
+      syncVersion = content.version;
+      localStorage.setItem(SK, JSON.stringify({ products: content.products, records: content.records }));
+      var active = document.querySelector(".page.active");
+      if (active) {
+        var id = active.id;
+        if (id === "pageInventory") renderInventory();
+        else if (id === "pageStats") renderStats();
+        populateSelect("inProduct");
+        populateSelect("outProduct");
+        updateRecent();
+      }
+      showToast("\uD83D\uDCE1 \u5DF2\u540C\u6B65\u6700\u65B0\u6570\u636E");
+    }
+    setSyncStatus(true);
+  } catch(e) {
+    setSyncStatus(false);
+  }
+}
+function init() {
+  const d = getData();
+  if (d.products.length) {
+    renderInventory();
+    populateSelect('inProduct');
+    populateSelect('outProduct');
+    updateRecent();
+    return;
+  }
+  // Demo data
+  const demos = [
+    { type: 'MPP', model: 'DN200', thickness: 11.9, price: 85 },
+    { type: 'MPP', model: 'DN160', thickness: 9.5, price: 62 },
+    { type: 'MPP', model: 'DN110', thickness: 6.5, price: 38 },
+    { type: 'MPP', model: 'DN75', thickness: 4.5, price: 28 },
+    { type: 'PE', model: 'DN200', thickness: 11.9, price: 72, weight: 3.85 },
+    { type: 'PE', model: 'DN160', thickness: 9.5, price: 52, weight: 2.65 },
+    { type: 'PE', model: 'DN110', thickness: 6.5, price: 32, weight: 1.85 },
+    { type: 'PE', model: 'DN75', thickness: 4.5, price: 18, weight: 1.15 }
+  ];
+  demos.forEach(dd => {
+    d.products.push({ id: genId(), type: dd.type, model: dd.model, thickness: dd.thickness, price: dd.price, weightPerMeter: dd.weight || 0, note: '', createdAt: Date.now() });
+  });
+  // Demo records
+  const now = Date.now();
+  const pid1 = d.products[0].id, pid2 = d.products[2].id, pid3 = d.products[4].id;
+  d.records.push({ id: genId(), productId: pid1, type: 'in', qty: 200, note: '采购入库', date: now - 86400000 * 3 });
+  d.records.push({ id: genId(), productId: pid1, type: 'out', qty: 50, note: '工地A', date: now - 86400000 * 2 });
+  d.records.push({ id: genId(), productId: pid2, type: 'in', qty: 150, note: '采购入库', date: now - 86400000 * 2 });
+  d.records.push({ id: genId(), productId: pid2, type: 'out', qty: 30, note: '工地B', date: now - 86400000 });
+  d.records.push({ id: genId(), productId: pid3, type: 'in', qty: 180, note: '采购入库', date: now - 86400000 * 4 });
+  d.records.push({ id: genId(), productId: pid3, type: 'out', qty: 40, note: '工地C', date: now - 86400000 });
+  saveData(d);
+  renderInventory();
+  populateSelect('inProduct');
+  populateSelect('outProduct');
+  updateRecent();
+}
+
+// Clock
+function updateClock() {
+  const el = document.getElementById('headerTime');
+  if (el) el.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+setInterval(updateClock, 30000);
+updateClock();
+
+// Init on load
+init();
+setTimeout(initSync, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "server.js"
+      - "index.html"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "microsoft"
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Bundle HTML into APK
+        run: |
+          cp index.html android/app/src/main/assets/index.html
+          cp manifest.json android/app/src/main/assets/manifest.json
+          cp icon.svg android/app/src/main/assets/icon.svg
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          curl -sL "https://services.gradle.org/distributions/gradle-8.5-bin.zip" -o gradle.zip
+          unzip -q gradle.zip
+          export GRADLE_HOME=$(pwd)/gradle-8.5
+          $GRADLE_HOME/bin/gradle wrapper --gradle-version 8.5
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          $GRADLE_HOME/bin/gradle assembleRelease
+
+      - name: Sign APK
+        run: |
+          keytool -genkey -v -keystore debug.keystore -alias debug \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android -dname "CN=, OU=, O=, L=, S=, C="
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+            -keystore debug.keystore -storepass android \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk debug
+          zipalign -v 4 \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            PipeInventory.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PipeInventory-APK
+          path: PipeInventory.apk

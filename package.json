@@ -1,0 +1,9 @@
+﻿{
+  "name": "pipe-inventory",
+  "version": "1.0.0",
+  "description": "MPP/PE 管材库存管理",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
