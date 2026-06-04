@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - "android/**"
-      - "server.js"
       - "index.html"
   workflow_dispatch:
 
@@ -33,27 +32,51 @@ jobs:
       - name: Build APK
         working-directory: android
         run: |
-          curl -sL "https://services.gradle.org/distributions/gradle-8.5-bin.zip" -o gradle.zip
+          curl -sLo gradle.zip "https://services.gradle.org/distributions/gradle-8.5-bin.zip"
           unzip -q gradle.zip
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           export GRADLE_HOME=$(pwd)/gradle-8.5
           $GRADLE_HOME/bin/gradle wrapper --gradle-version 8.5
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          $GRADLE_HOME/bin/gradle assembleRelease
+          $GRADLE_HOME/bin/gradle assembleDebug
 
-      - name: Sign APK
+      - name: Prepare APK
         run: |
-          keytool -genkey -v -keystore debug.keystore -alias debug \
+          APK="android/app/build/outputs/apk/release/app-debug.apk"
+          if [ ! -f "$APK" ]; then
+            APK="android/app/build/outputs/apk/release/app-release.apk"
+          fi
+          echo "APK path: $APK"
+          ls -la "$APK" || ls -la android/app/build/outputs/apk/release/
+          
+          # Generate debug keystore and sign
+          # keytool -genkey -v -keystore debug.keystore -alias debug \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android -dname "CN=, OU=, O=, L=, S=, C="
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
-            -keystore debug.keystore -storepass android \
-            android/app/build/outputs/apk/release/app-release-unsigned.apk debug
-          zipalign -v 4 \
-            android/app/build/outputs/apk/release/app-release-unsigned.apk \
-            PipeInventory.apk
+          
+          # jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+            -keystore debug.keystore -storepass android "$APK" debug
+          
+          # Find zipalign
+          ZIPALIGN=$(find $ANDROID_HOME -name "zipalign" -type f 2>/dev/null | head -1)
+          if [ -z "$ZIPALIGN" ]; then
+            echo "zipalign not found, installing build-tools..."
+            yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
+            ZIPALIGN=$(find $ANDROID_HOME -name "zipalign" -type f 2>/dev/null | head -1)
+          fi
+          echo "zipalign: $ZIPALIGN"
+          cp "$APK" PipeInventory.apk
+          
+          echo "APK size: $(ls -lh PipeInventory.apk | awk '{print $5}')"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: PipeInventory-APK
           path: PipeInventory.apk
+
+      - name: Upload APK (unsigned fallback)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PipeInventory-APK-debug
+          path: android/app/build/outputs/apk/release/app-debug.apk
