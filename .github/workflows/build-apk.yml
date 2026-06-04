@@ -23,11 +23,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Bundle HTML into APK
-        run: |
-          cp index.html android/app/src/main/assets/index.html
-          cp manifest.json android/app/src/main/assets/manifest.json
-          cp icon.svg android/app/src/main/assets/icon.svg
 
       - name: Build Debug APK
         working-directory: android
