@@ -1,23 +1,20 @@
-package com.pipeinventory
+﻿package com.pipeinventory
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class MainActivity : AppCompatActivity() {
-    companion object {
-        // 部署到 Koyeb 后修改这里
-        private const val SERVER_URL = "file:///android_asset/index.html"
-    }
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
@@ -40,6 +37,10 @@ class MainActivity : AppCompatActivity() {
             setSupportZoom(true)
             allowContentAccess = true
             allowFileAccess = false
+            @Suppress("DEPRECATION")
+            allowFileAccessFromFileURLs = false
+            @Suppress("DEPRECATION")
+            allowUniversalAccessFromFileURLs = false
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -51,10 +52,13 @@ class MainActivity : AppCompatActivity() {
             }
             override fun onReceivedError(
                 view: WebView?, request: WebResourceRequest?,
-                error: WebResourceError?
+                error: android.webkit.WebResourceError?
             ) {
                 progressBar.visibility = View.GONE
-                Toast.makeText(this@MainActivity, "连接服务器失败", Toast.LENGTH_LONG).show()
+            }
+            @Suppress("DEPRECATION")
+            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                return false
             }
         }
 
@@ -64,11 +68,22 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-                // Allow mixed content (we fetch from https API while on file://)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            webView.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        // Read HTML from assets and load with https base URL (fixes CORS for fetch)
+        try {
+            val reader = BufferedReader(InputStreamReader(assets.open("index.html"), "UTF-8"))
+            val sb = StringBuilder()
+            var line: String? = reader.readLine()
+            while (line != null) {
+                sb.append(line).append("\n")
+                line = reader.readLine()
+            }
+            reader.close()
+            val html = sb.toString()
+            // Use a fake https origin so fetch() to gitee.com works (CORS)
+            webView.loadDataWithBaseURL("https://pipe-inventory.app/", html, "text/html", "UTF-8", null)
+        } catch (e: Exception) {
+            webView.loadUrl("file:///android_asset/index.html")
         }
-        webView.loadUrl(SERVER_URL)
     }
 
     override fun onBackPressed() {
